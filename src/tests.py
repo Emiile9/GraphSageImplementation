@@ -1,7 +1,9 @@
 """Fichier pour tester les fonctions utils sur petites instances"""
 import numpy as np
 import random
-from utils import get_n_neighbours
+import torch
+from src.utils.utils import get_n_neighbours
+from src.layers import MeanAggregator
 
 #Features
 features = np.array([
@@ -25,3 +27,10 @@ adj = {
 
 neighbours = get_n_neighbours(adj, 0, 2)
 print("2 Neighbors of node 0:", neighbours)
+
+neighbours_feats = features[neighbours]
+print(neighbours_feats)
+input_tensor = torch.FloatTensor(neighbours_feats).unsqueeze(0)
+print(input_tensor)
+MeanAggregator_instance = MeanAggregator()
+print(MeanAggregator_instance.forward(input_tensor))
