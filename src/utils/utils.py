@@ -1,3 +1,6 @@
+"""
+Fichier utilitaire pour les fonctions diverses
+"""
 import numpy as np
 
 def get_n_neighbours(graph, node, n):

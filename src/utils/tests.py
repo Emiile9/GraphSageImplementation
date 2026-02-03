@@ -1,3 +1,4 @@
+"""Fichier pour tester les fonctions utils sur petites instances"""
 import numpy as np
 import random
 from utils import get_n_neighbours
