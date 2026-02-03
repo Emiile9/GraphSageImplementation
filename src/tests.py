@@ -34,3 +34,20 @@ input_tensor = torch.FloatTensor(neighbours_feats).unsqueeze(0)
 print(input_tensor)
 MeanAggregator_instance = MeanAggregator()
 print(MeanAggregator_instance.forward(input_tensor))
+
+# On veut l'embedding pour le noeud 0 et le noeud 1 simultanément
+node_0_neighbors = get_n_neighbours(adj, 0, 2) # ex: [1, 4]
+node_1_neighbors = get_n_neighbours(adj, 1, 2) # ex: [0, 5]
+
+# Construction du batch : (2 nœuds, 2 voisins chacun, 3 features)
+batch_neighbors_feats = np.array([
+    features[node_0_neighbors],
+    features[node_1_neighbors]
+])
+
+input_batch = torch.FloatTensor(batch_neighbors_feats) 
+# Forme : (2, 2, 3)
+
+output_batch = MeanAggregator_instance(input_batch)
+# Forme : (2, 3) -> Une moyenne par nœud du batch
+print(output_batch)
