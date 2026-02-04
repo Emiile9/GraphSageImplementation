@@ -3,7 +3,7 @@ import numpy as np
 import random
 import torch
 from src.utils.utils import get_n_neighbours
-from src.layers import MeanAggregator, MaxPoolingAggregator
+from src.layers import MeanAggregator, MaxPoolingAggregator, LSTMAggregator
 
 #Features
 features = np.array([
@@ -27,6 +27,7 @@ adj = {
 
 MeanAggregator_instance = MeanAggregator()
 MaxPoolingAggregator_instance = MaxPoolingAggregator(in_features=3, out_features=4)
+LSTMAggregator_instance = LSTMAggregator(in_features=3, out_features=4)
 
 # On veut l'embedding pour le noeud 0 et le noeud 1 simultanément
 node_0_neighbors = get_n_neighbours(adj, 0, 2) # ex: [1, 4]
@@ -40,10 +41,12 @@ batch_neighbors_feats = np.array([
 
 input_batch = torch.FloatTensor(batch_neighbors_feats) 
 # Forme : (2, 2, 3)
-
-output_batch_mean = MeanAggregator_instance(input_batch)
-output_batch_max_pool = MaxPoolingAggregator_instance(input_batch)
+with torch.no_grad():
+    output_batch_mean = MeanAggregator_instance.aggregate(input_batch)
+    output_batch_max_pool = MaxPoolingAggregator_instance.aggregate(input_batch)
+    output_batch_lstm = LSTMAggregator_instance.aggregate(input_batch)
 # Forme : (2, 3) -> Une moyenne par nœud du batch
 print("Input batch :", input_batch)
 print("Output with mean agg:", output_batch_mean)
 print("Output with Max Pool Agg:", output_batch_max_pool)
+print("Output with LSTM Agg:", output_batch_lstm)
