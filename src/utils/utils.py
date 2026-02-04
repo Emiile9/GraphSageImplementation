@@ -1,7 +1,9 @@
 """
 Fichier utilitaire pour les fonctions diverses
 """
+
 import numpy as np
+
 
 def get_n_neighbours(graph, node, n):
     """
@@ -22,4 +24,3 @@ def get_n_neighbours(graph, node, n):
     if len(neighbors) <= n:
         return neighbors
     return list(np.random.choice(neighbors, n, replace=False))
-
