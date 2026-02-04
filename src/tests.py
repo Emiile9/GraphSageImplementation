@@ -3,7 +3,7 @@ import numpy as np
 import random
 import torch
 from src.utils.utils import get_n_neighbours
-from src.layers import MeanAggregator
+from src.layers import MeanAggregator, MaxPoolingAggregator
 
 #Features
 features = np.array([
@@ -25,15 +25,8 @@ adj = {
     5: [1, 3]
 }
 
-neighbours = get_n_neighbours(adj, 0, 2)
-print("2 Neighbors of node 0:", neighbours)
-
-neighbours_feats = features[neighbours]
-print(neighbours_feats)
-input_tensor = torch.FloatTensor(neighbours_feats).unsqueeze(0)
-print(input_tensor)
 MeanAggregator_instance = MeanAggregator()
-print(MeanAggregator_instance.forward(input_tensor))
+MaxPoolingAggregator_instance = MaxPoolingAggregator(in_features=3, out_features=4)
 
 # On veut l'embedding pour le noeud 0 et le noeud 1 simultanément
 node_0_neighbors = get_n_neighbours(adj, 0, 2) # ex: [1, 4]
@@ -48,6 +41,9 @@ batch_neighbors_feats = np.array([
 input_batch = torch.FloatTensor(batch_neighbors_feats) 
 # Forme : (2, 2, 3)
 
-output_batch = MeanAggregator_instance(input_batch)
+output_batch_mean = MeanAggregator_instance(input_batch)
+output_batch_max_pool = MaxPoolingAggregator_instance(input_batch)
 # Forme : (2, 3) -> Une moyenne par nœud du batch
-print(output_batch)
+print("Input batch :", input_batch)
+print("Output with mean agg:", output_batch_mean)
+print("Output with Max Pool Agg:", output_batch_max_pool)
