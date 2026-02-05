@@ -1,36 +1,43 @@
 """Fichier pour tester les fonctions utils sur petites instances"""
 
+import networkx as nx
 import numpy as np
 import random
 import torch
 from src.utils.utils import get_n_neighbours
 from src.layers import MeanAggregator, MaxPoolingAggregator, LSTMAggregator
 
-# Features
+G = nx.Graph()
+edges = [(0, 1), (0, 2), (0, 4), (1, 3), (1, 5), (2, 4), (3, 5)]
+G.add_edges_from(edges)
+
 features = np.array(
     [
-        [1.0, 0.1, 5.0],  # Nœud 0
-        [0.2, 0.8, 1.0],  # Nœud 1
-        [1.5, 0.3, 4.0],  # Nœud 2
-        [0.1, 0.9, 0.0],  # Nœud 3
-        [1.2, 0.2, 4.5],  # Nœud 4
-        [0.0, 0.7, 0.5],  # Nœud 5
+        [1.0, 0.1, 5.0],
+        [0.2, 0.8, 1.0],
+        [1.5, 0.3, 4.0],
+        [0.1, 0.9, 0.0],
+        [1.2, 0.2, 4.5],
+        [0.0, 0.7, 0.5],
     ],
     dtype=np.float32,
 )
+print(G.has_node(0))
+print(list(G.neighbors(0)))
 
-# Adjacency list
-adj = {0: [1, 2, 4], 1: [0, 3, 5], 2: [0, 4], 3: [1, 5], 4: [0, 2], 5: [1, 3]}
+# Optionnel : On peut attacher les features aux nœuds dans NetworkX
+for i in range(len(features)):
+    G.nodes[i]["x"] = features[i]
+
 
 MeanAggregator_instance = MeanAggregator()
 MaxPoolingAggregator_instance = MaxPoolingAggregator(in_features=3, out_features=4)
 LSTMAggregator_instance = LSTMAggregator(in_features=3, out_features=4)
 
-# On veut l'embedding pour le noeud 0 et le noeud 1 simultanément
-node_0_neighbors = get_n_neighbours(adj, 0, 2)  # ex: [1, 4]
-node_1_neighbors = get_n_neighbours(adj, 1, 2)  # ex: [0, 5]
+node_0_neighbors = get_n_neighbours(G, 0, 2)
+node_1_neighbors = get_n_neighbours(G, 1, 2)
 
-# Construction du batch : (2 nœuds, 2 voisins chacun, 3 features)
+
 batch_neighbors_feats = np.array(
     [features[node_0_neighbors], features[node_1_neighbors]]
 )
