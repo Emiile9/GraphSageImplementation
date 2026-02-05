@@ -22,13 +22,10 @@ features = np.array(
     ],
     dtype=np.float32,
 )
-print(G.has_node(0))
-print(list(G.neighbors(0)))
 
 # Optionnel : On peut attacher les features aux nœuds dans NetworkX
 for i in range(len(features)):
-    G.nodes[i]["x"] = features[i]
-
+    G.nodes[i]["features"] = features[i]
 
 MeanAggregator_instance = MeanAggregator()
 MaxPoolingAggregator_instance = MaxPoolingAggregator(in_features=3, out_features=4)
