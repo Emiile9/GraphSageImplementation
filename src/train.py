@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 
 from dataset import GraphSageDataset
 
+
 def graphsage_unsupervised_loss(z_u, z_pos, z_neg):
     """
     z_u   : (batch, d) embeddings des noeuds centraux
@@ -19,12 +20,15 @@ def graphsage_unsupervised_loss(z_u, z_pos, z_neg):
     pos_loss = F.logsigmoid(pos_score)
 
     # produit scalaire négatif
-    neg_score = torch.bmm(z_neg, z_u.unsqueeze(2)).squeeze(2)   # produit scalaire par batch avec les bonnes dimensions
-    neg_loss = F.logsigmoid(-neg_score).sum(dim=1)              # on somme sur les Q négatifs pour avoir une approximation de Q fois l'espérance (principe Monte-Carlo)
+    neg_score = torch.bmm(z_neg, z_u.unsqueeze(2)).squeeze(
+        2
+    )  # produit scalaire par batch avec les bonnes dimensions
+    neg_loss = F.logsigmoid(-neg_score).sum(
+        dim=1
+    )  # on somme sur les Q négatifs pour avoir une approximation de Q fois l'espérance (principe Monte-Carlo)
 
     loss = -(pos_loss + neg_loss).mean()
     return loss
-
 
 
 def train(model, data_graph, device, epochs=100, batch_size=128):
@@ -34,13 +38,15 @@ def train(model, data_graph, device, epochs=100, batch_size=128):
     optimizer = optim.Adam(model.parameters(), lr=3e-4, weight_decay=1e-4)
 
     dataset = GraphSageDataset(data_graph.adj_list)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    dataloader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, drop_last=True
+    )
 
-    print('--------------------------------')
-    print('Training.')
+    print("--------------------------------")
+    print("Training.")
 
     for epoch in range(epochs):
-        print(f'Epoch {epoch+1} / {epochs}')
+        print(f"Epoch {epoch+1} / {epochs}")
         losses = []
 
         for u, pos, neg in dataloader:
@@ -63,7 +69,7 @@ def train(model, data_graph, device, epochs=100, batch_size=128):
 
             losses.append(loss.item())
 
-        print(f'Average loss: {sum(losses) / len(losses):.4f}')
+        print(f"Average loss: {sum(losses) / len(losses):.4f}")
 
-    print('Finished training.')
-    print('--------------------------------')
+    print("Finished training.")
+    print("--------------------------------")

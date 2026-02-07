@@ -27,6 +27,7 @@ def get_n_neighbours(graph: nx.Graph, node, n: int):
     rng = np.random.default_rng()
     return list(rng.choice(neighbors, n, replace=False))
 
+
 def get_n_features(graph: nx.Graph, node):
     """
     Retourne la liste des features d'un noeud n appartenant à un graph G
@@ -42,4 +43,4 @@ def get_n_features(graph: nx.Graph, node):
     if not graph.has_node(node):
         return []
     features = graph.nodes[node]["features"]
-    return features    
+    return features
