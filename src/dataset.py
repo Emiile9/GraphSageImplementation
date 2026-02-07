@@ -1,13 +1,16 @@
+import random
+import torch
 from torch.utils.data import Dataset
+
 
 class GraphSageDataset(Dataset):
     def __init__(
         self,
-        adj_list,           # liste d'adjacence du graphe
-        num_pairs=10000,    # nombre de paires positives à générer
-        walk_length=5,      # longueur des random walks pour générer les paires positives
-        context_size=2,     # taille du contexte pour les paires positives (nombre de voisins à gauche et à droite dans la random walk)
-        num_neg=20,         # nombre de négatifs à échantillonner pour chaque paire positive
+        adj_list,  # liste d'adjacence du graphe
+        num_pairs=10000,  # nombre de paires positives à générer
+        walk_length=5,  # longueur des random walks pour générer les paires positives
+        context_size=2,  # taille du contexte pour les paires positives (nombre de voisins à gauche et à droite dans la random walk)
+        num_neg=20,  # nombre de négatifs à échantillonner pour chaque paire positive
     ):
         self.adj_list = adj_list
         self.num_nodes = len(adj_list)
@@ -25,7 +28,6 @@ class GraphSageDataset(Dataset):
 
         # Pré-génération des paires positives
         self.u_nodes, self.pos_nodes = self._generate_positive_pairs()
-
 
     def _generate_positive_pairs(self):
         u_nodes, pos_nodes = [], []
@@ -60,10 +62,8 @@ class GraphSageDataset(Dataset):
 
         return torch.tensor(u_nodes), torch.tensor(pos_nodes)
 
-
     def __len__(self):
         return self.num_pairs
-
 
     def __getitem__(self, idx):
         u = self.u_nodes[idx]
