@@ -6,7 +6,7 @@ import numpy as np
 import networkx as nx
 
 
-def get_n_neighbours(graph: nx.Graph, node, n: int):
+def get_n_neighbours(graph: nx.Graph, node, n: int) -> list:
     """
     Retourne n voisins aléatoires d'un noeud donné dans un graphe représenté par une liste d'adjacence.
 
@@ -28,7 +28,7 @@ def get_n_neighbours(graph: nx.Graph, node, n: int):
     return list(rng.choice(neighbors, n, replace=False))
 
 
-def get_n_features(graph: nx.Graph, node):
+def get_n_features(graph: nx.Graph, node) -> list:
     """
     Retourne la liste des features d'un noeud n appartenant à un graph G
 
