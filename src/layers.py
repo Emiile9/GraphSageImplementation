@@ -7,7 +7,7 @@ class MeanAggregator(nn.Module):
     def __init__(self):
         super(MeanAggregator, self).__init__()
 
-    def aggregate(self, neighbours_features):
+    def aggregate(self, neighbours_features : torch.Tensor) -> torch.Tensor:
         """
         Args:
             neighbors_features (torch.Tensor): Tensor de forme (batch_size, num_neighbors, feature_dim)
@@ -19,11 +19,11 @@ class MeanAggregator(nn.Module):
 
 
 class MaxPoolingAggregator(nn.Module):
-    def __init__(self, in_features, out_features):
+    def __init__(self, in_features : int , out_features : int):
         super(MaxPoolingAggregator, self).__init__()
         self.fc = nn.Linear(in_features, out_features)
 
-    def aggregate(self, neighbours_features):
+    def aggregate(self, neighbours_features : torch.Tensor) -> torch.Tensor:
         """
         Args:
             neighbors_features (torch.Tensor): Tensor de forme (batch_size, num_neighbors, feature_dim)
@@ -40,7 +40,7 @@ class LSTMAggregator(nn.Module):
         super(LSTMAggregator, self).__init__()
         self.lstm = nn.LSTM(in_features, out_features)
 
-    def aggregate(self, neighbours_features):
+    def aggregate(self, neighbours_features : torch.Tensor) -> torch.Tensor:
         # Mélange les voisins comme mentionné dans l'article
         idx = torch.randperm(neighbours_features.size(1))
         shuffled_neighbours = neighbours_features[:, idx, :]
