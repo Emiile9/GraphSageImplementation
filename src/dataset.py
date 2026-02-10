@@ -7,24 +7,39 @@ class GraphSageDataset(Dataset):
     def __init__(
         self,
         G,
-        num_pairs=10000,  # nombre de paires positives à générer
-        walk_length=5,  # longueur des random walks pour générer les paires positives
-        context_size=2,  # taille du contexte pour les paires positives (nombre de voisins à gauche et à droite dans la random walk)
-        num_neg=20,  # nombre de négatifs à échantillonner pour chaque paire positive
+        num_pairs=10000,
+        walk_length=5,
+        context_size=2,
+        num_neg=20,
     ):
         self.G = G
-        self.adj_list = {i: list(G.neighbors(i)) for i in G.nodes()}  # liste d'adjacence du graphe
-        self.num_nodes = len(self.adj_list)
+
+        # --- CHANGEMENT ICI ---
+        # Re-mapping des noeuds vers des indices continus 0..N-1
+        self.nodes = list(G.nodes())
+        self.node_to_idx = {node: i for i, node in enumerate(self.nodes)}
+
+        self.adj_list = {
+            self.node_to_idx[node]: [
+                self.node_to_idx[neigh] for neigh in G.neighbors(node)
+            ]
+            for node in self.nodes
+        }
+        # --- FIN DU CHANGEMENT ---
+
+        self.num_nodes = len(self.nodes)
         self.num_pairs = num_pairs
         self.walk_length = walk_length
         self.context_size = context_size
         self.num_neg = num_neg
 
         # Distribution négative degree^(3/4)
-        degrees = torch.tensor([len(self.adj_list[i]) for i in range(self.num_nodes)], dtype=torch.float)
+        degrees = torch.tensor(
+            [len(self.adj_list[i]) for i in range(self.num_nodes)],
+            dtype=torch.float
+        )
         prob_neg = degrees.pow(0.75)
         prob_neg /= prob_neg.sum()
-
         self.prob_neg = prob_neg
 
         # Pré-génération des paires positives
@@ -33,7 +48,6 @@ class GraphSageDataset(Dataset):
     def _generate_positive_pairs(self):
         u_nodes, pos_nodes = [], []
 
-        # random walks pour générer les paires positives
         while len(u_nodes) < self.num_pairs:
             start = random.randrange(self.num_nodes)
             walk = [start]
@@ -44,7 +58,6 @@ class GraphSageDataset(Dataset):
                     break
                 walk.append(random.choice(self.adj_list[cur]))
 
-            # Génération des paires positives à partir de la random walk
             for i, u in enumerate(walk):
                 for j in range(
                     max(0, i - self.context_size),
@@ -70,7 +83,6 @@ class GraphSageDataset(Dataset):
         u = self.u_nodes[idx]
         pos = self.pos_nodes[idx]
 
-        # Échantillonnage négatif aléatoire à chaque appel
         neg = torch.multinomial(
             self.prob_neg,
             self.num_neg,
