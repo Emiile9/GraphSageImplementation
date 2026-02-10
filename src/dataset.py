@@ -6,21 +6,22 @@ from torch.utils.data import Dataset
 class GraphSageDataset(Dataset):
     def __init__(
         self,
-        adj_list,  # liste d'adjacence du graphe
+        G,
         num_pairs=10000,  # nombre de paires positives à générer
         walk_length=5,  # longueur des random walks pour générer les paires positives
         context_size=2,  # taille du contexte pour les paires positives (nombre de voisins à gauche et à droite dans la random walk)
         num_neg=20,  # nombre de négatifs à échantillonner pour chaque paire positive
     ):
-        self.adj_list = adj_list
-        self.num_nodes = len(adj_list)
+        self.G = G
+        self.adj_list = {i: list(G.neighbors(i)) for i in G.nodes()}  # liste d'adjacence du graphe
+        self.num_nodes = len(self.adj_list)
         self.num_pairs = num_pairs
         self.walk_length = walk_length
         self.context_size = context_size
         self.num_neg = num_neg
 
         # Distribution négative degree^(3/4)
-        degrees = torch.tensor([len(neigh) for neigh in adj_list], dtype=torch.float)
+        degrees = torch.tensor([len(self.adj_list[i]) for i in range(self.num_nodes)], dtype=torch.float)
         prob_neg = degrees.pow(0.75)
         prob_neg /= prob_neg.sum()
 

@@ -5,6 +5,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
+from tqdm import tqdm
+
 from dataset import GraphSageDataset
 
 
@@ -31,45 +33,54 @@ def graphsage_unsupervised_loss(z_u, z_pos, z_neg):
     return loss
 
 
-def train(model, data_graph, device, epochs=100, batch_size=128):
+def train(model, G, device, sampling_size, epochs=100, learning_rate=3e-4, batch_size=128):
 
     model.to(device)
-    criterion = graphsage_unsupervised_loss
-    optimizer = optim.Adam(model.parameters(), lr=3e-4, weight_decay=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    dataset = GraphSageDataset(data_graph.adj_list)
-    dataloader = DataLoader(
-        dataset, batch_size=batch_size, shuffle=True, drop_last=True
-    )
+    dataset = GraphSageDataset(G)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    print("--------------------------------")
-    print("Training.")
+    print('--------------------------------')
+    print('Training.')
 
     for epoch in range(epochs):
-        print(f"Epoch {epoch+1} / {epochs}")
+        print(f'\nEpoch {epoch+1} / {epochs}')
+
         losses = []
 
-        for u, pos, neg in dataloader:
+        # 👉 barre de progression sur les batchs
+        pbar = tqdm(loader, leave=False)
 
-            u = u.to(device)
-            pos = pos.to(device)
-            neg = neg.to(device)
+        for u, pos, neg in pbar:
 
-            z = model(data_graph.x.to(device))
+            u = u.tolist()
+            pos = pos.tolist()
+            neg = neg.tolist()
 
-            z_u = z[u]
-            z_pos = z[pos]
-            z_neg = z[neg]
+            z_u   = model.forward_propagation(G, u, sampling_size)
+            z_pos = model.forward_propagation(G, pos, sampling_size)
 
-            loss = criterion(z_u, z_pos, z_neg)
+            # Négatifs
+            neg_flat = [n for row in neg for n in row]
+            z_neg_flat = model.forward_propagation(G, neg_flat, sampling_size)
+
+            d = z_u.shape[1]
+            z_neg = z_neg_flat.view(len(u), -1, d)
+
+            loss = graphsage_unsupervised_loss(z_u, z_pos, z_neg)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            losses.append(loss.item())
+            loss_val = loss.item()
+            losses.append(loss_val)
 
-        print(f"Average loss: {sum(losses) / len(losses):.4f}")
+            # 👉 mise à jour barre de progression
+            pbar.set_description(f"Batch loss: {loss_val:.4f}")
 
-    print("Finished training.")
-    print("--------------------------------")
+        print(f'Average loss: {sum(losses)/len(losses):.4f}')
+
+    print('Finished training.')
+
