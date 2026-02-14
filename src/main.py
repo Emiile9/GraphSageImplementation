@@ -18,8 +18,9 @@ random.seed(0)
 # 1. Charger un graphe réel (.pt)
 
 G = torch.load(
-    "src/generation_dataset/2026-02-10_14-21-11/graphs/facebook_graph.pt"
+    "GraphSageImplementation/src/generation_dataset/2026-02-10_14-21-11/graphs/ppi.pt"
 )
+
 
 # 2. Initialiser les features de noeuds
 
@@ -53,7 +54,7 @@ train(
     G,
     device,
     sampling_size=sample_size,
-    epochs=20,
+    epochs=2,
     learning_rate=3e-4,
-    batch_size=64
+    batch_size=32
 )
