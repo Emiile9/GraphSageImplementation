@@ -1,81 +1,146 @@
-"""
-Fichier contenant l'algorithme forward propagation mini batch
-"""
-
+from typing import List, Callable, Iterable, Union
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
 import networkx as nx
-from src.utils.utils import get_n_neighbours,get_n_features
-from typing import List,Callable
+
+from utils.utils import get_n_neighbours, get_n_features
+
 
 class AlgoMiniBatch(nn.Module):
-    def __init__(self, depth: int, weight_matrices: nn.ModuleList, sigma: Callable, agg_f: nn.ModuleList):
+    def __init__(
+        self,
+        depth: int,
+        weight_matrices: nn.ModuleList,
+        sigma: Callable,
+        agg_f: nn.ModuleList,
+    ):
         """
-        Args :
-            depth (int) : Nombre de couches
-            weight_matrices (nn.ModuleList) : W^k, liste des matrices de poids pour chaque couche
-            sigma (Callable) : Fonction d'activation non linéaire 
-            agg_f (nn.ModuleList) : Liste des fonctions d'agrégation pour chaque couche
+        Args:
+            depth (int): Nombre de couches K
+            weight_matrices (nn.ModuleList): W^k, liste des matrices de poids par couche.
+                Chaque W[k] doit être de forme Linear(2*hidden_dim -> hidden_dim).
+            sigma (Callable): Fonction d'activation (ex: F.relu)
+            agg_f (nn.ModuleList): Liste des agrégateurs pour chaque couche.
+                Chaque agrégateur expose une méthode .aggregate(neighbours_features)
+                qui renvoie (batch, hidden_dim).
         """
-        super(AlgoMiniBatch, self).__init__()
+        super().__init__()
         self.K = depth
         self.W = weight_matrices
         self.sigma = sigma
         self.agg_f = agg_f
 
+
+    @staticmethod
+    def _to_python_nodes(nodes: Union[torch.Tensor, Iterable]) -> List[int]:
+        """
+        Convertit un batch de noeuds (souvent Tensor PyTorch) en liste de int Python.
+        Indispensable car NetworkX utilise des noeuds "int", et torch.Tensor(5) != 5.
+        """
+        if isinstance(nodes, torch.Tensor):
+            return [int(x) for x in nodes.detach().cpu().tolist()]
+        out = []
+        for x in nodes:
+            if isinstance(x, torch.Tensor):
+                out.append(int(x.detach().cpu().item()))
+            else:
+                out.append(int(x))
+        return out
+
+
     def forward_propagation(self, G: nx.Graph, nodes, sampling_size: List[int]) -> torch.Tensor:
         """
-        Génère les embeddings pour un mini batch de noeuds
+        Génère les embeddings pour un mini batch de noeuds.
 
         Args:
-            G (nx.Graph) : Graphe concerné
-            nodes : B, Batch de noeuds cibles
-            sampling_size (List[int]) : Taille du sampling pour chaque couche
+            G (nx.Graph): Graphe concerné (les features doivent être dans G.nodes[u]["features"])
+            nodes: batch B de noeuds cibles (souvent torch.Tensor venant du DataLoader)
+            sampling_size (List[int]): tailles d'échantillonnage pour chaque couche (longueur K)
 
-        Returns: 
-            z (torch.Tensor) : Embeddings pour le mini batch
+        Returns:
+            z (torch.Tensor): embeddings des noeuds du batch, shape (batch_size, hidden_dim)
         """
+        if len(sampling_size) != self.K:
+            raise ValueError(f"sampling_size doit être de longueur {self.K}, reçu {len(sampling_size)}")
 
-        B = {self.K: set(nodes)}
+        # Conversion critique: noeuds PyTorch -> int Python
+        nodes_list = self._to_python_nodes(nodes)
+
+        # Device du modèle (pour éviter des mélanges CPU/GPU)
+        device = next(self.parameters()).device
+
+        # Dimension interne (hidden_dim)
+        hidden_dim = self.W[0].out_features
+
+        # Construction des ensembles de noeuds B_k et des voisinages échantillonnés
+        B = {self.K: set(nodes_list)}
         sampled_adj = {}
+
         for k in range(self.K, 0, -1):
-            B[k-1] = set(B[k])
+            B[k - 1] = set(B[k])
             for u in B[k]:
-                neighbors = get_n_neighbours(G, u, sampling_size[k-1])
+                neighbors = get_n_neighbours(G, u, sampling_size[k - 1])
                 sampled_adj[(k, u)] = neighbors
-                B[k-1].update(neighbors)
+                B[k - 1].update(neighbors)
 
+        # Initialisation h^0 (features)
         h = {}
-        h[0] = {node: torch.tensor(get_n_features(G, node)) for node in B[0]}
+        h0 = {}
+        for node in B[0]:
+            feats = get_n_features(G, node)
 
+            if isinstance(feats, torch.Tensor):
+                t = feats.clone().detach().float()
+            else:
+                t = torch.tensor(feats, dtype=torch.float)
+
+            t = t.to(device)
+
+            if t.numel() == 0:
+                t = torch.zeros(hidden_dim, device=device)
+
+            h0[node] = t
+
+        h[0] = h0
+
+        # Propagation couche par couche
         for k in range(self.K):
             current_h = {}
-            for u in B[k+1]:
-                neighbors = sampled_adj.get((k+1, u), [])
-                h_k_1_list = [h[k][v] for v in neighbors]
-                
-                if len(h_k_1_list) > 0:
-                    h_k_1 = torch.stack(h_k_1_list).unsqueeze(0)
-                    h_k_N = self.agg_f[k].aggregate(h_k_1)
-                    h_k_N = h_k_N.view(-1)
+
+            for u in B[k + 1]:
+                neighbors = sampled_adj.get((k + 1, u), [])
+
+                # Agrégation des voisins
+                if len(neighbors) > 0:
+                    neigh_feats = torch.stack([h[k][v] for v in neighbors], dim=0) 
+                    neigh_feats = neigh_feats.unsqueeze(0)
+                    h_k_N = self.agg_f[k].aggregate(neigh_feats).view(-1)
                 else:
-                    feat_dim = h[k][u].shape[0] if k==0 else self.W[k-1].out_features
-                    h_k_N = torch.zeros(feat_dim)
+                    # cas sans voisin : vecteur nul de dimension hidden_dim
+                    h_k_N = torch.zeros(hidden_dim, dtype=h[k][u].dtype, device=device)
 
-                concat = torch.cat((h[k][u], h_k_N), dim=0)
-                
-                h_u_k = self.sigma(self.W[k](concat))
+                # Sécurité: s'assurer que h[k][u] a bien la dimension hidden_dim
+                h_u_prev = h[k][u]
+                if h_u_prev.numel() == 0:
+                    h_u_prev = torch.zeros(hidden_dim, dtype=h_k_N.dtype, device=device)
 
+                # Concaténation (doit être 2*hidden_dim)
+                concat = torch.cat((h_u_prev, h_k_N), dim=0)  # (2*hidden_dim,)
+
+                # Transformation linéaire + activation
+                h_u_k = self.W[k](concat.unsqueeze(0)).squeeze(0)  # (hidden_dim,)
+                h_u_k = self.sigma(h_u_k)
+
+                # Normalisation L2
                 norm = torch.norm(h_u_k, p=2)
-                if norm != 0:
+                if norm > 0:
                     h_u_k = h_u_k / norm
+
                 current_h[u] = h_u_k
-            
-            h[k+1] = current_h
 
-        z = torch.stack([h[self.K][u] for u in nodes])
+            h[k + 1] = current_h
+
+        # Embeddings des noeuds demandés (dans l'ordre du batch)
+        z = torch.stack([h[self.K][u] for u in nodes_list], dim=0)
         return z
-

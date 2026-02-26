@@ -12,6 +12,9 @@ from dataset import GraphSageDataset
 
 def graphsage_unsupervised_loss(z_u, z_pos, z_neg):
     """
+    Fonction de perte du papier GraphSage
+
+    --- Paramètres ---
     z_u   : (batch, d) embeddings des noeuds centraux
     z_pos : (batch, d) embeddings des voisins positifs
     z_neg : (batch, Q, d) embeddings négatifs
@@ -22,18 +25,26 @@ def graphsage_unsupervised_loss(z_u, z_pos, z_neg):
     pos_loss = F.logsigmoid(pos_score)
 
     # produit scalaire négatif
-    neg_score = torch.bmm(z_neg, z_u.unsqueeze(2)).squeeze(
-        2
-    )  # produit scalaire par batch avec les bonnes dimensions
-    neg_loss = F.logsigmoid(-neg_score).sum(
-        dim=1
-    )  # on somme sur les Q négatifs pour avoir une approximation de Q fois l'espérance (principe Monte-Carlo)
+    neg_score = torch.bmm(z_neg, z_u.unsqueeze(2)).squeeze(2)  # produit scalaire par batch avec les bonnes dimensions
+    neg_loss = F.logsigmoid(-neg_score).sum(dim=1)  # on somme sur les Q négatifs pour avoir une approximation de Q fois l'espérance (principe Monte-Carlo)
 
     loss = -(pos_loss + neg_loss).mean()
     return loss
 
 
-def train(model, G, device, sampling_size, epochs=100, learning_rate=3e-4, batch_size=128):
+def train(model, G, device, sampling_size, epochs=10, learning_rate=3e-4, batch_size=128):
+    """
+    Entrainement d'un modèle GraphSage
+
+    --- Paramètres ---
+    :param model: le modèle à entrainer
+    :param G: le graphe networkx sur lequel on souhaite obtenir les embeddings
+    :param device: device pytorch
+    :param sampling_size: tailles d'échantillonnage pour chaque couche
+    :param epochs: nombre d'époques pour l'entrainement
+    :param learning_rate: taux d'apprentissage
+    :param batch_size: taille des batchs
+    """
 
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -42,14 +53,12 @@ def train(model, G, device, sampling_size, epochs=100, learning_rate=3e-4, batch
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     print('--------------------------------')
-    print('Training.')
 
     for epoch in range(epochs):
-        print(f'\nEpoch {epoch+1} / {epochs}')
+        print(f'\nEpoque {epoch+1} / {epochs}')
 
         losses = []
 
-        # 👉 barre de progression sur les batchs
         pbar = tqdm(loader, leave=False)
 
         for u, pos, neg in pbar:
@@ -77,10 +86,9 @@ def train(model, G, device, sampling_size, epochs=100, learning_rate=3e-4, batch
             loss_val = loss.item()
             losses.append(loss_val)
 
-            # 👉 mise à jour barre de progression
             pbar.set_description(f"Batch loss: {loss_val:.4f}")
 
         print(f'Average loss: {sum(losses)/len(losses):.4f}')
 
-    print('Finished training.')
+    print('Entrainement terminé.')
 
