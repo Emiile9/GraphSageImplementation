@@ -1,9 +1,3 @@
-"""
-Fichier contenant l'algorithme forward propagation mini batch
-
-Algo compètement fait par chatGPT pour debug.
-"""
-
 from typing import List, Callable, Iterable, Union
 
 import torch
@@ -37,6 +31,7 @@ class AlgoMiniBatch(nn.Module):
         self.sigma = sigma
         self.agg_f = agg_f
 
+
     @staticmethod
     def _to_python_nodes(nodes: Union[torch.Tensor, Iterable]) -> List[int]:
         """
@@ -44,9 +39,7 @@ class AlgoMiniBatch(nn.Module):
         Indispensable car NetworkX utilise des noeuds "int", et torch.Tensor(5) != 5.
         """
         if isinstance(nodes, torch.Tensor):
-            # ex: tensor([1,2,3]) -> [1,2,3]
             return [int(x) for x in nodes.detach().cpu().tolist()]
-        # cas DataLoader: liste/tuple de scalaires ou de tensors 0-d
         out = []
         for x in nodes:
             if isinstance(x, torch.Tensor):
@@ -54,6 +47,7 @@ class AlgoMiniBatch(nn.Module):
             else:
                 out.append(int(x))
         return out
+
 
     def forward_propagation(self, G: nx.Graph, nodes, sampling_size: List[int]) -> torch.Tensor:
         """
@@ -79,9 +73,9 @@ class AlgoMiniBatch(nn.Module):
         # Dimension interne (hidden_dim)
         hidden_dim = self.W[0].out_features
 
-        # 1) Construction des ensembles de noeuds B_k et des voisinages échantillonnés
+        # Construction des ensembles de noeuds B_k et des voisinages échantillonnés
         B = {self.K: set(nodes_list)}
-        sampled_adj = {}  # clé: (k, u) -> liste de voisins échantillonnés pour u à la couche k
+        sampled_adj = {}
 
         for k in range(self.K, 0, -1):
             B[k - 1] = set(B[k])
@@ -90,22 +84,19 @@ class AlgoMiniBatch(nn.Module):
                 sampled_adj[(k, u)] = neighbors
                 B[k - 1].update(neighbors)
 
-        # 2) Initialisation h^0 (features)
+        # Initialisation h^0 (features)
         h = {}
         h0 = {}
         for node in B[0]:
             feats = get_n_features(G, node)
 
-            # get_n_features peut renvoyer un Tensor (recommandé)
             if isinstance(feats, torch.Tensor):
                 t = feats.clone().detach().float()
             else:
                 t = torch.tensor(feats, dtype=torch.float)
 
-            # Important: mettre sur le device du modèle
             t = t.to(device)
 
-            # Sécurité: si features manquantes -> vecteur nul
             if t.numel() == 0:
                 t = torch.zeros(hidden_dim, device=device)
 
@@ -113,18 +104,18 @@ class AlgoMiniBatch(nn.Module):
 
         h[0] = h0
 
-        # 3) Propagation couche par couche
+        # Propagation couche par couche
         for k in range(self.K):
             current_h = {}
 
             for u in B[k + 1]:
                 neighbors = sampled_adj.get((k + 1, u), [])
 
-                # a) Agrégation des voisins
+                # Agrégation des voisins
                 if len(neighbors) > 0:
-                    neigh_feats = torch.stack([h[k][v] for v in neighbors], dim=0)  # (num_neigh, hidden_dim)
-                    neigh_feats = neigh_feats.unsqueeze(0)  # (1, num_neigh, hidden_dim)
-                    h_k_N = self.agg_f[k].aggregate(neigh_feats).view(-1)  # (hidden_dim,)
+                    neigh_feats = torch.stack([h[k][v] for v in neighbors], dim=0) 
+                    neigh_feats = neigh_feats.unsqueeze(0)
+                    h_k_N = self.agg_f[k].aggregate(neigh_feats).view(-1)
                 else:
                     # cas sans voisin : vecteur nul de dimension hidden_dim
                     h_k_N = torch.zeros(hidden_dim, dtype=h[k][u].dtype, device=device)
@@ -134,14 +125,14 @@ class AlgoMiniBatch(nn.Module):
                 if h_u_prev.numel() == 0:
                     h_u_prev = torch.zeros(hidden_dim, dtype=h_k_N.dtype, device=device)
 
-                # b) Concaténation (doit être 2*hidden_dim)
+                # Concaténation (doit être 2*hidden_dim)
                 concat = torch.cat((h_u_prev, h_k_N), dim=0)  # (2*hidden_dim,)
 
-                # c) Transformation linéaire + activation
+                # Transformation linéaire + activation
                 h_u_k = self.W[k](concat.unsqueeze(0)).squeeze(0)  # (hidden_dim,)
                 h_u_k = self.sigma(h_u_k)
 
-                # d) Normalisation L2 (optionnel)
+                # Normalisation L2
                 norm = torch.norm(h_u_k, p=2)
                 if norm > 0:
                     h_u_k = h_u_k / norm
@@ -150,6 +141,6 @@ class AlgoMiniBatch(nn.Module):
 
             h[k + 1] = current_h
 
-        # 4) Sortie: embeddings des noeuds demandés (dans l'ordre du batch)
+        # Embeddings des noeuds demandés (dans l'ordre du batch)
         z = torch.stack([h[self.K][u] for u in nodes_list], dim=0)
         return z

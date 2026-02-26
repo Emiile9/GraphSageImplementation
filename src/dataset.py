@@ -4,6 +4,17 @@ from torch.utils.data import Dataset
 
 
 class GraphSageDataset(Dataset):
+    """
+    Transformation d'un graphe networkx en données exploitables par PyTorch
+
+    --- Paramètres ---
+    G : Graphe networkx
+    num_pairs : nombre de paires générées à partir du graphe (chaque paire forme un individu de notre dataset)
+    walk_length : longueur des random walks
+    context_size : distance entre deux noeuds d'une même random walk pour être considérés comme proches (paire positive)
+    num_neg : nombre de noeuds non-proches utilisés pour la fonction de perte
+    """
+    
     def __init__(
         self,
         G,
@@ -14,8 +25,6 @@ class GraphSageDataset(Dataset):
     ):
         self.G = G
 
-        # --- CHANGEMENT ICI ---
-        # Re-mapping des noeuds vers des indices continus 0..N-1
         self.nodes = list(G.nodes())
         self.node_to_idx = {node: i for i, node in enumerate(self.nodes)}
 
@@ -25,7 +34,6 @@ class GraphSageDataset(Dataset):
             ]
             for node in self.nodes
         }
-        # --- FIN DU CHANGEMENT ---
 
         self.num_nodes = len(self.nodes)
         self.num_pairs = num_pairs
@@ -46,6 +54,7 @@ class GraphSageDataset(Dataset):
         self.u_nodes, self.pos_nodes = self._generate_positive_pairs()
 
     def _generate_positive_pairs(self):
+        # On utilise des random-walks pour générer les paires positives
         u_nodes, pos_nodes = [], []
 
         while len(u_nodes) < self.num_pairs:
