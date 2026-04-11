@@ -7,9 +7,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import argparse
 
-from Algo_Mini_Batch import AlgoMiniBatch
-from train import train
-from layers import MeanAggregator, MaxPoolingAggregator, LSTMAggregator
+from src.Algo_Mini_Batch import AlgoMiniBatch
+from src.train import train
+from src.layers import MeanAggregator, MaxPoolingAggregator, LSTMAggregator
 
 
 ##########  Arguments Terminal  ##########
