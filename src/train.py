@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from tqdm import tqdm
 
-from dataset import GraphSageDataset
+from src.dataset import GraphSageDataset
 
 
 def graphsage_unsupervised_loss(z_u, z_pos, z_neg):

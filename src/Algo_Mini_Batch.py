@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import networkx as nx
 
-from utils.utils import get_n_neighbours, get_n_features
+from src.utils.utils import get_n_neighbours, get_n_features
 
 
 class AlgoMiniBatch(nn.Module):
