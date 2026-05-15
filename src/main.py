@@ -88,24 +88,33 @@ print(f"  - min / max : {check.min().item():.4f} / {check.max().item():.4f}")
 ##########  Choix agregateur  ##########
 
 depth = 2
-hidden_dim = feat_dim
+# hidden_dim fixé à 256 comme dans le papier (indépendant de feat_dim)
+hidden_dim = 256
 
 if args.aggregator == "mean":
-    agg = nn.ModuleList([MeanAggregator() for _ in range(depth)])
+    agg = nn.ModuleList([MeanAggregator()] +
+                        [MeanAggregator() for _ in range(depth - 1)])
 elif args.aggregator == "max":
-    agg = nn.ModuleList([MaxPoolingAggregator(hidden_dim, hidden_dim) for _ in range(depth)])
+    # couche 0 : feat_dim -> hidden_dim ; couches suivantes : hidden_dim -> hidden_dim
+    agg = nn.ModuleList([MaxPoolingAggregator(feat_dim, hidden_dim)] +
+                        [MaxPoolingAggregator(hidden_dim, hidden_dim) for _ in range(depth - 1)])
 elif args.aggregator == "lstm":
-    agg = nn.ModuleList([LSTMAggregator(hidden_dim, hidden_dim) for _ in range(depth)])
+    agg = nn.ModuleList([LSTMAggregator(feat_dim, hidden_dim)] +
+                        [LSTMAggregator(hidden_dim, hidden_dim) for _ in range(depth - 1)])
 
 
 ##########  Modele  ##########
 
-W = nn.ModuleList([
-    nn.Linear(2 * hidden_dim, hidden_dim)
-    for _ in range(depth)
-])
+# W[0] adapte feat_dim -> hidden_dim ; W[1:] font hidden_dim -> hidden_dim
+# Pour MeanAggregator : concat = feat_dim + feat_dim (mean préserve la dim)
+# Pour Max/LSTM       : concat = feat_dim + hidden_dim (l'agrégateur projette)
+agg_out_0 = agg[0].output_dim(feat_dim)
+W = nn.ModuleList(
+    [nn.Linear(feat_dim + agg_out_0, hidden_dim)] +
+    [nn.Linear(2 * hidden_dim, hidden_dim) for _ in range(depth - 1)]
+)
 
-# Initialisation Kaiming adaptee a ReLU / LeakyReLU
+# Initialisation Kaiming adaptee a LeakyReLU
 for layer in W:
     nn.init.kaiming_uniform_(layer.weight, nonlinearity='leaky_relu', a=0.1)
     nn.init.zeros_(layer.bias)
@@ -115,7 +124,8 @@ sample_size = [args.sample_size for _ in range(depth)]
 # LeakyReLU au lieu de ReLU : evite le "dying ReLU problem"
 activation = lambda x: F.leaky_relu(x, negative_slope=0.1)
 
-model = AlgoMiniBatch(depth, W, activation, agg, normalize_output=True).to(device)
+model = AlgoMiniBatch(depth, W, activation, agg,
+                      normalize_output=True, in_features=feat_dim).to(device)
 
 print("\nNb parametres :", sum(p.numel() for p in model.parameters()))
 
