@@ -54,7 +54,7 @@ def build_model(feat_dim, aggregator_type="mean", depth=2):
 
 
 def run_training(G, model, epochs=5, batch_size=32, lr=1e-3, num_pairs=500, sample_size=5):
-    device = torch.device("cpu")
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     model.to(device)
 
     dataset = GraphSageDataset(G, num_pairs=num_pairs, walk_length=5,
