@@ -32,7 +32,7 @@ def graphsage_unsupervised_loss(z_u, z_pos, z_neg):
     return loss
 
 
-def train(model, G, device, sampling_size, epochs=10, learning_rate=3e-4, batch_size=128):
+def train(model, G, device, sampling_size, epochs=10, learning_rate=3e-4, batch_size=128, num_pairs=10000):
     """
     Entrainement d'un modèle GraphSage
 
@@ -44,12 +44,13 @@ def train(model, G, device, sampling_size, epochs=10, learning_rate=3e-4, batch_
     :param epochs: nombre d'époques pour l'entrainement
     :param learning_rate: taux d'apprentissage
     :param batch_size: taille des batchs
+    :param num_pairs: nombre de paires positives générées par random walks
     """
 
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    dataset = GraphSageDataset(G)
+    dataset = GraphSageDataset(G, num_pairs=num_pairs)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     print('--------------------------------')

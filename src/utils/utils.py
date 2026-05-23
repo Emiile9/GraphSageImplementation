@@ -22,10 +22,11 @@ def get_n_neighbours(graph: nx.Graph, node, n: int) -> list:
         return []
 
     neighbors = list(graph.neighbors(node))
-    if len(neighbors) <= n:
-        return neighbors
-    rng = np.random.default_rng()
-    return list(rng.choice(neighbors, n, replace=False))
+    if not neighbors:
+        return []
+    # Échantillonnage avec remise quand n > degré (conforme au papier, Appendix A)
+    replace = len(neighbors) < n
+    return list(np.random.choice(neighbors, n, replace=replace))
 
 
 def get_n_features(graph: nx.Graph, node) -> list:
