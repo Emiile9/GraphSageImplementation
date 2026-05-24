@@ -55,6 +55,7 @@ def train(model, G, device, sampling_size, epochs=10, learning_rate=3e-4, batch_
 
     print('--------------------------------')
 
+    epoch_losses = []
     for epoch in range(epochs):
         print(f'\nEpoque {epoch+1} / {epochs}')
 
@@ -89,7 +90,10 @@ def train(model, G, device, sampling_size, epochs=10, learning_rate=3e-4, batch_
 
             pbar.set_description(f"Batch loss: {loss_val:.4f}")
 
-        print(f'Average loss: {sum(losses)/len(losses):.4f}')
+        avg = sum(losses) / len(losses)
+        epoch_losses.append(avg)
+        print(f'Average loss: {avg:.4f}')
 
     print('Entrainement terminé.')
+    return epoch_losses
 
