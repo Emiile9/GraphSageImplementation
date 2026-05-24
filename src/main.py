@@ -36,6 +36,9 @@ parser.add_argument("--batch_size", type=int, default=128,
 parser.add_argument("--lr", type=float, default=1e-3,
                     help="Learning rate")
 
+parser.add_argument("--num_pairs", type=int, default=50000,
+                    help="Nombre de paires positives générées par random walks")
+
 args = parser.parse_args()
 
 
@@ -142,7 +145,8 @@ train(
     sampling_size=sample_size,
     epochs=args.epochs,
     learning_rate=args.lr,
-    batch_size=args.batch_size
+    batch_size=args.batch_size,
+    num_pairs=args.num_pairs,
 )
 
 print("\nL'entrainement est termine.")

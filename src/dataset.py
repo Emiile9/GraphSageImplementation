@@ -29,17 +29,14 @@ class GraphSageDataset(Dataset):
         self.num_nodes = len(self.nodes)
 
         # Adjacence avec les vrais node IDs du graphe
-        self.adj_list = {
-            node: list(G.neighbors(node))
-            for node in self.nodes
-        }
+        self.adj_list = {node: list(G.neighbors(node)) for node in self.nodes}
 
         self.num_pairs = num_pairs
         self.walk_length = walk_length
         self.context_size = context_size
         self.num_neg = num_neg
 
-        # Distribution négative degree^(3/4) indexée par position dans self.nodes
+        # Distribution négative degree^(3/4) sur les vrais node IDs
         degrees = torch.tensor(
             [len(self.adj_list[node]) for node in self.nodes],
             dtype=torch.float
@@ -47,12 +44,14 @@ class GraphSageDataset(Dataset):
         prob_neg = degrees.pow(0.75)
         prob_neg /= prob_neg.sum()
         self.prob_neg = prob_neg
+        # Tensor des vrais node IDs pour la conversion index → node ID
+        self.nodes_tensor = torch.tensor(self.nodes)
 
-        # Pré-génération des paires positives (stockées comme vrais node IDs)
+        # Pré-génération des paires positives
         self.u_nodes, self.pos_nodes = self._generate_positive_pairs()
 
     def _generate_positive_pairs(self):
-        # Random-walks sur les vrais node IDs
+        # Random walks sur les vrais node IDs du graphe
         u_nodes, pos_nodes = [], []
 
         while len(u_nodes) < self.num_pairs:
@@ -91,9 +90,12 @@ class GraphSageDataset(Dataset):
         u = self.u_nodes[idx]
         pos = self.pos_nodes[idx]
 
-        # multinomial renvoie des positions → convertir en vrais node IDs
-        neg_positions = torch.multinomial(self.prob_neg, self.num_neg, replacement=True)
-        nodes_tensor = torch.tensor(self.nodes)
-        neg = nodes_tensor[neg_positions]
+        # multinomial retourne des indices → convertir en vrais node IDs
+        neg_positions = torch.multinomial(
+            self.prob_neg,
+            self.num_neg,
+            replacement=True,
+        )
+        neg = self.nodes_tensor[neg_positions]
 
         return u, pos, neg

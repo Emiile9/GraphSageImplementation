@@ -32,7 +32,7 @@ def graphsage_unsupervised_loss(z_u, z_pos, z_neg):
     return loss
 
 
-def train(model, G, device, sampling_size, epochs=10, learning_rate=3e-4, batch_size=128):
+def train(model, G, device, sampling_size, epochs=10, learning_rate=3e-4, batch_size=128, num_pairs=10000):
     """
     Entrainement d'un modèle GraphSage
 
@@ -44,16 +44,18 @@ def train(model, G, device, sampling_size, epochs=10, learning_rate=3e-4, batch_
     :param epochs: nombre d'époques pour l'entrainement
     :param learning_rate: taux d'apprentissage
     :param batch_size: taille des batchs
+    :param num_pairs: nombre de paires positives générées par random walks
     """
 
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    dataset = GraphSageDataset(G)
+    dataset = GraphSageDataset(G, num_pairs=num_pairs)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     print('--------------------------------')
 
+    epoch_losses = []
     for epoch in range(epochs):
         print(f'\nEpoque {epoch+1} / {epochs}')
 
@@ -88,7 +90,10 @@ def train(model, G, device, sampling_size, epochs=10, learning_rate=3e-4, batch_
 
             pbar.set_description(f"Batch loss: {loss_val:.4f}")
 
-        print(f'Average loss: {sum(losses)/len(losses):.4f}')
+        avg = sum(losses) / len(losses)
+        epoch_losses.append(avg)
+        print(f'Average loss: {avg:.4f}')
 
     print('Entrainement terminé.')
+    return epoch_losses
 
